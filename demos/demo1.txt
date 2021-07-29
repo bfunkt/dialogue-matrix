@@ -1,0 +1,427 @@
+"""
+THIS FILE:
+Demonstrates a verbose, hand-typed conversation file for use with the dialogue_matrix module and dialogue_matrix_builder. 
+    The logical routing, from top-down, should generally follow the flow of the conversation, with a few exceptions.
+    The verbose format is just a convenience feature for constructing conversations, as the non-verbose format is difficult to read.
+    The verbose format also includes local variable support, which can be used to route between dialogue_matrix objects before the object IDs (uids) have been generated.
+
+After the verbose example, the same data is shown in the non-verbose, compressed format.
+    This non-verbose format is the standard output format of the dialogue_matrix_builder.py GUI program.
+    The dialogue_matrix module can read and write in both formats.
+
+CONVENTIONS:
+#       comment to the end of the line (ignored)
+# """   block comment
+{}      an object instantiation. These are always prefixed by a line header. Options listed below.
+
+$$      indicates the data line is only used in dialogue_matrix_builder program for GUI support
+**      indicates the data line will be auto-generated on 1st processing, if not manually defined - ergo, these lines can be ommitted if desired 
+
+VARIABLES:
+~       prefixes all VAR references (global VARs that retrieve and store data from the hosting program)
+
+^^      bookends a local variable placeholder for an attribute to receive a value   e.g. attr: ^123^ appends list '123' with the attribute 'attr'
+||      bookends a local variable name, propagating a value                         e.g. val: |123| sets all elements of list '123' to val; deletes list '123'
+            note:   ^var^ instances should always precede |var| in this file as the file data is always processed from top to bottom. 
+            e.g.    NODE { 
+                            uid: |previousRoute|,
+                            ROUTE   {   to_uid: ^nextNode^  },
+                         }
+                    NODE {
+                            uid: |nextNode|,
+                         }
+
+            In this example, 
+                - ^nextNode^ creates a list and appends ROUTE.to_uid to it
+                - under the hood, the program generates a new unique identifier (n), assuming a value does not already exist 
+                - assigns (n) to NODE.uid 
+                - assigns (n) to all current elements of 'nextNode' (e.g. ROUTE.to_uid) 
+                - then deletes the local variable 'nextNode', freeing the name for use again without concern of incorrect value assignment due to persisting old data
+
+        note: these 'uid' routing attributes and the like do NOT need to be populated in the hand-typed conversation files. 
+            Nodes, routes, and other objects etc can be created in these files just to build the basic conversation flow.
+            The first time builder.py reads in the file, it will auto-populate all uids, and execute the above mentioned local variable behavior, if applicable.
+            If some dialogue objects are not connected after that, the user can manually connect them via the node network GUI (or with a program feature that auto-populates the routes based on the most obvious selections)  
+
+
+COMMON ATTRIBUTES:
+uid: Any object with a uid, 'unique identifier', contains behaviors that impact the conversation. 
+     These objects can all be "routed to", meaning the conversation path can target any point in the dialogue_matrix logic.
+
+LINE HEADERS:
+    GLOBAL: This holds the non-verbose data output from the module in a collection of dictionaries. 
+        Create exactly 1 GLOBAL data block per dialogue_matrix file.
+        If there are multiple conversations in a single dialogue_matrix file, they will all pull from and write to the same set of GLOBAL data.
+
+        Unless *verbose-output is declared in builder.py when processing these files, builder.py will put all  
+        GROUPs, NODEs, ROUTEs, ACTIONs, CONDITIONs, and VARs into the GLOBAL dictionaries, using the non-verbose format.
+
+        Data can also be manually entered into the GLOBAL dicts, but again, it probably wont be your first choice for manual data entry.
+        The conversation flow is poorly visualized here.  
+
+    CONV: Create exactly 1 'CONV' block per conversation. 
+        Contains all of the general information about a conversation.
+    
+    CAST: The characters taking part in the conversation. 
+        For example, a conversation file will often include Player as the first listed character, using character_uid 0.
+
+
+
+
+    GROUP: A group should encompass a single conversational function / purpose. 
+        The logical grouping it provides is used for node-tree view filtering in the GUI builder.py, and also enables some convenience routing options.
+        e.g. Player(0) starts a conversation with NPC(1), and Player has 30 different ways to greet NPC.
+             A single greeting will be selected from the 30 different greetings, based on a series of conditional criteria.
+             All 30 of the greetings + the conditional logic used to determine the selection will all be encompassed in a single GROUP.
+             This group could be called "Player Greetings". 
+             GROUPs can be easily ported to other conversations, so the GROUPs naturally behave like template containers. 
+        Note: only one character will have speech text per GROUP.
+        e.g. Once we determine that Player selects "Hello, and good morning!" from the nodes in our example GROUP, then the following GROUP in sequence will likely
+             include NPC's potential responses. If NPC doesn't generally greet people for whatever reason, then the next GROUP could
+             be NPC moving straight into the bigger conversation, such as "So, did you climb to the top of the mountain yet?"  
+    
+    NODE: is the base unit of logic and conversational navigation, always stored within and assigned to a GROUP.
+        note- a NODE can only belong to 1 parent GROUP object, as the builder.py node network GUI relies on GROUPs to determine where to place nodes in the node tree. 
+        e.g. In the above example, the 30 greetings + the various conditional logic/routing elements each get one NODE,
+             totalling perhaps Qty.40 NODEs in 1 GROUP. (this would be a very large GROUP. Most groups will include between ~1 and 15 nodes. ) 
+             NODEs have an attribute 'node_type', which determines the function and behavior of each node.
+             'node_type' options include 'TEXT', 'MULTI', 'VALUE', 'RANDOM', and 'COMPLEX'. 
+    
+    ROUTE: The output object(s) of a NODE. 
+        Once a NODE has executed, it generally triggers a single ROUTE, which navigates the conversation to the next logical point in the conversation.
+        A ROUTE can navigate to any object in the conversation with a 'uid' attribute. Most often, a ROUTE will point to a GROUP or NODE.
+        A NODE can contain many different ROUTEs, but at most, only one of these ROUTEs will run per NODE execution.
+        (and the ROUTE selection will be determined via a number of different inputs and logical behaviors) 
+    
+    ACTION: A behavior to affect the game / program from within a conversation.   
+        NODEs can include any number of ACTIONs that execute when the NODE is triggered.
+        ROUTEs can include any number of ACTIONs that execute when the ROUTE is triggered by the NODE.
+        e.g. Assume a conversation with the local Shopkeep is held up at a MULTI type NODE, which presents the user with a multiple choice selection, 
+             and waits for a keyboard input selection. The choices presented by the MULTI node are:  
+                "1. Thanks very much, you have a great product!"
+                "2. I guess that will have to do for now."
+                "3. Your product is GARBAGE, and your FATHER smelled of ELDERBERRIES!"
+             This MULTI-type NODE contains 3 ROUTEs - one for each response.
+             Response 3 is downright rude and offensive! In real life, if you said that to a Shopkeep, they would probably ban you from their establishment.
+             If Player decides to offend the Shopkeep, we need to reflect the negative impact on Player's relationship with the Shopkeep.
+             Thus, we add an ACTION to ROUTE#3 which sends a signal to the game, reducing the Player-Shopkeep relationship by ... oh, idk, 20%.
+
+    CONDITION: COMPLEX type NODESs have a list of ROUTEs, each with CONDITIONs to challenge in order to trigger the ROUTE. 
+        up to 2 variables (of varying types), and a comparison operand. 
+        Valid CONDITION operands are: { 1:'gt', 2:'lt', 3:'gte', 4:'lte', 5:'eq', 6:'is', 7:'is_not' }
+        (use either the enum index, or the string operand)
+        e.g. CONDITION{ var1: ~current_health; var2: ~max_health; operand: 5; }
+                this condition says, "if Player's current health is equal to Player's maximum health, pass condition"
+
+    VAR: global variables that are used to interact with live game data. A defined VAR, when called, will retrieve a specific piece of data from the game.
+         The 'link' attribute is the actual code to be used to locate the desired data.
+        e.g. VAR { shorthand: '~mh', link: 'player.health.max' }  - this will grab the Player's maximum health value
+             A VALUE type NODE requires an input - this could reference '~mh'
+             e.g. NODE { type: 'VALUE', value_input: '~mh}
+             The ROUTES in a COMPLEX type NODE need at least one CONDITION - '~mh' could be used as one of the two CONDITION variables
+             e.g. NODE {    type:'COMPLEX', 
+                            ROUTE   {
+                                        CONDITION { var1: '~mh', var2: 500, operand='gte'}
+                                    }
+                        }
+
+"""
+
+
+
+#
+# ############################################################################################################################  
+# ############################################################################################################################  
+# ############################################################################################################################  
+#
+
+
+
+# -begin example file, verbose 
+# This is how a file might look when being initially created by the writer. 
+# The GLOBAL dicts are left blank in this verbose example, which is a good indicator that this is a new file and has yet to be imported into the dialogue_matrix module.
+
+# Towards the bottom of this file, the example of non-verbose formatting shows the GLOBAL data fully populated, and with the verbose data deleted.
+# The two different examples are logical equivalents.
+
+
+GLOBAL  {   
+            # Blank GLOBAL data - this section does not need to be included in the first draft files.
+            # On import to the dialogue_matrix module, the GLOBAL block and contained dictionaries will be generated in O_creat fashion
+ 
+            groups: {}                                                                               # **
+            # uid: { group_id: 01, name: 'mygroupname', default_node: 0, cast_uid: 0, nodes: [] }
+
+            nodes: {}                                                                               # **
+            # uid: { member_of: [126], type: 'TEXT', value_input: '~re', text: 'This is the text.', routes: []  }
+            # member_of: []   includes the GROUP uid that contains each node
+
+            routes: {}                                                                               # **
+            # uid: { member_of: [], name: '', to_uid: 0, text: '', marker: '', conditions: [], actions: [] }
+            # member_of: []   includes all NODE uids that employ the route
+
+            actions: {}                                                                              # ** 
+            # uid: { member_of: [], method: '', args: [] }
+            # member_of: []   includes all NODE and ROUTE uids that employ the ACTION
+            
+            conditions: {}                                                                           # **
+            # uid: { member_of: [], var1: '', var2: '', operand: '' ]
+            # member_of: []   includes all ROUTEs that employ the CONDITION
+
+            vars: {}                                                                                 #**
+            # uid: { member_of: [], shorthand: '~', link: ''}
+            # member_of: []   includes all NODE uids that employ the variable
+        }
+
+CONV    {   
+            conv_name: 'Player-Shopkeep_InTheStore'; 
+            description: 'The default convo between player and shopkeep whenever Player is in the shop.';
+            long_description: 'A longer description, if needed';
+
+            default_uid: 0;      # **       this is the primary entry point into the conversation (constant)
+            marker: 0;           #           this is the uid to trigger upon returning to a conversation (variable)
+
+            cast_list: [];      # we need the character uids
+
+
+            #local variables and shorthand, each starts with ~. These will be manually programmed into the game.
+            
+            # replace this value with the ref location(s) in code from where a VALUE type NODE would receive its input
+            VAR     { ~re: ['npc_relationship'];    }
+            
+            # if any other VALUEs are needed for the conversation
+            # e.g.
+            VAR     { ~he: ['player_health'];    }
+
+            group_local_ids: []
+        }
+
+GROUP   {   
+            uid: 126;            # **
+
+            group_id: 01;        # ** $$
+            name: 'mygroupname';
+            default_node: 0;     # **
+            cast_uid: 0;         # **        note: a group of nodes will default to character_id==0 (Player). be sure to set this value for groups containing NPC speech
+
+            node_members: [];     # **
+
+
+            # need to add "floating NODEs"
+
+            NODE    {
+                        uid: 0;      # **
+                        type: VALUE;
+
+                        value_input: ~re;        # for VALUE type nodes
+                                                # the conversation object will send the VAR value (e.g. ~re=='npc_relationship'), expecting a float return
+
+                        route_members: [];  # ** if any ROUTEs are already in the master list of routes, we can just put the route_uid in this list 
+                                             # on builder.py processing, the ROUTE definitions are removed from within the NODEs, and are replaced with the route_uid
+                        ROUTE   {
+                                    uid: 0;  # **
+                                    route_name: 'myroute01';
+                                    to_uid: ^1^;
+                                    text: '';
+
+                                    marker: 22; 
+
+                                    action_members: [];
+                                    condition_members: [];
+
+                                    ACTION  {
+                                                method: 'dialogue_system.method()';
+                                                args: [];                                
+                                            }
+                                    ACTION  {
+                                                method: 'dialogue_system.method()';
+                                                args: [];                                
+                                            }
+                                    ACTION  {
+                                                uid: 24;     # if an ACTION uid is already defined, no other data is required
+                                            }
+                                }
+                        ROUTE   {
+                                    to_uid: ^2^;
+                                }
+                        ROUTE   {
+                                    to_uid: ^3^;
+                                }
+                    }
+
+
+            # hypothetically, the above VALUE NODE would receive a float input, and select its output ROUTE based on said input.
+            #
+            # be sure the above ROUTEs are in order from top to bottom, highest to lowest input value 
+            # e.g. if there are 3 ROUTEs, the input is the float 'npc_relationship', and the float value is 0.6 indicating a 60% relationship with NPC, 
+            #       then ROUTE 2 (of 3) will be triggered, because ROUTE 1 responds to (0.67 to 1.0), ROUTE 2: (0.33 to 0.67), and ROUTE 3: (0.0, 0.33)
+            #
+            # similarly, if only 2 ROUTEs are defined, then ROUTE 1 will respond to (0.5 to 1.0), and ROUTE 2: (0.0 to 0.5)
+
+            NODE    {
+                        uid: |1|;      
+                        type: TEXT;
+                        text: 'This is the text to be printed in the speech / dialogue window.' ;      
+
+                        route_members: [];
+
+                        ROUTE   {
+                                    to_uid: ^g1^ ;
+                                    # note: this route points to the next GROUP, thus that GROUP's attribute 'default_node' will be called
+                                }
+                    }
+            NODE    {
+                        uid: |2|;
+                        type: TEXT;
+                        text: 'This is the text to be printed in the speech / dialogue window.' ;      
+
+                        route_members: [];
+                    }
+            NODE    {
+                        uid: |3|;
+                        type: TEXT;
+                        text: 'This is the text to be printed in the speech / dialogue window.' ;      
+
+                        route_members: [];
+                    }
+        }
+GROUP   {
+            uid: |g1|;
+            name: 'myGroupName02';
+            default_node: ^dgn^;     # ** if default_node is not explicitly defined, it will be automatically set to the first listed NODE in the GROUP
+
+            NODE {  uid: |dgn|; 
+                    type: COMPLEX;
+
+                    # declare global variables that will interact with the live game data
+                    VAR {~health: 'player_health'}
+
+                    # note: COMPLEX NODE outputs are MutEx 
+                    #         Only one ROUTE is triggered per NODE processing
+                    #         The last ROUTE in this NODE has no CONDITIONs, acting as an else: statement. 
+                    ROUTE   { 
+                                to_uid: ^1^;
+                                CONDITION { 
+                                            var1: ~health;
+                                            var2: 0.5;
+                                            operand: 'gte';
+                                          }
+                            }
+                    ROUTE   {
+                                to_uid: ^2^;
+                                CONDITION { 
+                                            var1: ~health;
+                                            var2: 0.5;
+                                            operand: 'lt';
+                                          }
+                            }
+                    ROUTE   {
+                                to_uid^3^;
+                            }
+                  }
+
+            NODE{ uid: |1|;  text: 'Say this if health is over or at 50%.'; 
+                    ROUTE {to_uid: ^nextGroup^}
+                }
+            NODE{ uid: |2|;  text: 'Say this if health is less than 50%.'; 
+                    ROUTE {to_uid: ^nextGroup^}
+                }
+            NODE{ uid: |3|;  text: 'Say this if there is an error in your conditional logic'
+                    ROUTE {to_uid: ^nextGroup^}
+                }
+        }
+
+GROUP {
+        uid: |nextGroup|;
+        name: 'etc etc etc'
+        }
+
+
+
+
+
+# ^^ hypothetical EoF
+# ############################################################################################################################  
+# ############################################################################################################################  
+# ############################################################################################################################  
+
+
+
+
+
+
+
+
+
+# ############################################################################################################################  
+# ############################################################################################################################  
+# ############################################################################################################################  
+#   start example file of the same conversation as above, but in non-verbose format
+#
+
+GLOBAL {
+            groups :     {  
+                            126: { group_id: 01, name: 'mygroupname',   default_node: 0, cast_uid: 0,    nodes: [0, 1, 2, 3] },
+                            127: { group_id: 02, name: 'mygroupname02', default_node: 4, cast_uid: 122,  nodes: [4, 5, 6, 7] },
+                            128: { group_id: 03, name: 'etc etc etc',   default_node: 8, cast_uid: 0,    nodes: []           }
+                        }
+
+            nodes :      {
+                            0: { type: 'VALUE',     member_of: [126],  value_input:~re,                                                            routes:[9, 10, 11]  },
+                            1: { type: 'TEXT',      member_of: [126],  text: 'This is the text to be printed in the speech / dialogue window.',    routes:[12]         },
+                            2: { type: 'TEXT',      member_of: [126],  text: 'This is the text to be printed in the speech / dialogue window.',    routes:[12]         },
+                            3: { type: 'TEXT',      member_of: [126],  text: 'This is the text to be printed in the speech / dialogue window.',    routes:[12]         },
+                            4: { type: 'COMPLEX',   member_of: [127],                                                                              routes:[13, 14, 17] },
+                            5: { type: 'TEXT',      member_of: [127],  text: 'Say this if health is over or at 50%.',                              routes:[18]         },       
+                            6: { type: 'TEXT',      member_of: [127],  text: 'Say this if health is less than 50%.',                               routes:[18]         },
+                            7: { type: 'TEXT',      member_of: [127],  text: 'Say this if there is an error in your conditional logic',            routes:[18]         }
+                        }
+
+            routes :     {    
+                            09: { member_of: [0], name: 'myroute01',     to_uid: 1, actions:[15, 16, 24]                  },
+                            10: { member_of: [0],                       to_uid: 2,                                       },
+                            11: { member_of: [0],                       to_uid: 3,                                       },
+                            12: { member_of: [0],                       to_uid: 3,                                       },
+                            13: { member_of: [4],                       to_uid: 5, conditions: [28]                       },
+                            14: { member_of: [4],                       to_uid: 6, conditions: [29]                       },
+                            17: { member_of: [4],                       to_uid: 7,                                       },
+                            18: { member_of: [5],                       to_uid: 128                                      }
+                        }        
+
+            actions :    {   
+                            15: [ member_of: [9], method: 'dialogue_system.method'            },
+                            16: [ member_of: [9], method: 'dialogue_system.method'            },
+                            24: [ member_of: [9], method: 'conv.set_marker', args: [2]         },
+                        }
+
+            conditions :  {    
+                            28: { member_of:[13], var1: '~he', var2: 0.5, operand: 'gte'     },
+                            29: { member_of:[14], var1: '~he', var2: 0.5, operand: 'lt'      }
+                        }                                
+
+            vars :       {
+                            39: {   members:[0]        ,  shortcut:'~re', link:'npc_relationship'   },
+                            40: {   members:[28, 29]   ,  shortcut:'~he', link:'player_health'      }  
+                        }   
+        }
+
+CONV    {      
+            conv_name:          'Player-Shopkeep_InTheStore', 
+            description:        'The standard convo between player and shopkeep whenever Player is in the shop.',
+            long_description:   'A longer description, if needed',
+
+            default_uid:        0,
+            marker:             0,
+
+            group_local_ids:    [
+                                    (01: 126), 
+                                    (02: 127), 
+                                    (03: 128)
+                                ],
+
+            cast:               [   
+                                    (000: 'Player'), 
+                                    (122: 'Shopkeep')
+                                ]
+        }
+
