@@ -1,5 +1,76 @@
 # -*- coding: utf-8 -*-
+
 """
+"""
+
+import sys
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QDialog, QApplication, QFileDialog
+from PyQt5.uic import loadUi
+
+DIRECTORY = 'documents'
+
+class MainWindow(QDialog):
+    global DIRECTORY
+    def __init__(self):
+        super(MainWindow, self).__init__()
+        loadUi("ui/gui.ui", self)
+        self.button_FileBrowse.clicked.connect(self.file_browse)
+        self.button_FileSave.clicked.connect(self.file_save)
+        self.button_FileSaveAs.clicked.connect(self.file_save_as)
+        self.button_FileSave.clicked.connect(self.file_load)
+        self.button_FileSave.clicked.connect(self.file_close)
+        self.button_EditMode.clicked.connect(self.go_edit_mode)
+
+    def file_browse(self):
+        fname = QFileDialog.getOpenFileName(self, 'Open file...', '')    #, 'XML files (*.xml)')
+        self.lineEdit_FileSelected.setText(fname[0])
+
+    def file_save(self):
+        pass
+
+    def file_save_as(self):
+        pass
+
+    def file_load(self):
+        pass
+
+    def file_close(self):
+        pass
+
+    def go_edit_mode(self):
+        pass
+
+app = QApplication(sys.argv)
+main = MainWindow()
+widget = QtWidgets.QStackedWidget()
+widget.addWidget(main)
+
+widget.show()
+
+sys.exit(app.exec())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 """
 
 from pyqtgraph.flowchart import Flowchart, Node
@@ -101,7 +172,7 @@ win.setLayout(layout2)
 ## flowchart control panel)
 
 class ImageViewNode(Node):
-    """Node that displays image data in an ImageView widget"""
+    # Node that displays image data in an ImageView widget
     nodeName = 'ImageView'
     
     def __init__(self, name):
@@ -130,7 +201,7 @@ class ImageViewNode(Node):
 ## CtrlNode is just a convenience class that automatically creates its
 ## control widget based on a simple data structure.
 class UnsharpMaskNode(CtrlNode):
-    """Return the input data passed through an unsharp mask."""
+    #    Return the input data passed through an unsharp mask.
     nodeName = "UnsharpMask"
     uiTemplate = [
         ('sigma',  'spin', {'value': 1.0, 'step': 1.0, 'bounds': [0.0, None]}),
@@ -193,3 +264,5 @@ fc.setLibrary(library)
 
 if __name__ == '__main__':
     pg.mkQApp().exec_()
+
+"""
